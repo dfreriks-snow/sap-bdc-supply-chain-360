@@ -42,8 +42,8 @@ export function fetchSupplyChainMap(plants: string[]): Promise<any> {
   return get(`/geography?plants=${plants.join(',')}`);
 }
 
-export function fetchBdcProducts(): Promise<any> {
-  return get('/data-products');
+export function fetchLineage(): Promise<any> {
+  return get('/lineage');
 }
 
 export async function fetchAnalyst(messages: { role: string; content: string }[]): Promise<any> {

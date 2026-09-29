@@ -9,7 +9,7 @@ import Logistics from '@/pages/Logistics';
 import WorkCenter from '@/pages/WorkCenter';
 import Projects from '@/pages/Projects';
 import Geography from '@/pages/Geography';
-import DataProducts from '@/pages/DataProducts';
+import Lineage from '@/pages/Lineage';
 import Analyst from '@/pages/Analyst';
 import Ontology from '@/pages/Ontology';
 import Optimization from '@/pages/Optimization';
@@ -24,7 +24,7 @@ const PAGE_COMPONENTS: Record<string, React.FC> = {
   workcenter: WorkCenter,
   projects: Projects,
   supplychain: Geography,
-  bdc: DataProducts,
+  lineage: Lineage,
   analyst: Analyst,
   ontology: Ontology,
   optimization: Optimization,

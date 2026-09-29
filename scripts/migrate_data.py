@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Bundle the 11 Supply Chain 360 tables into the application package's
+Bundle the 12 Supply Chain 360 tables into the application package's
 SHARED_DATA schema so the Native App is fully self-contained (no consumer
 references).
 
@@ -35,6 +35,7 @@ SOURCES = {
     "DT_SUPPLIER_QUALITY":        "SAP_SUPPLY_CHAIN.ANALYTICS.DT_SUPPLIER_QUALITY",
     "A_SUPPLY_CHAIN_NODES":       "SAP_SUPPLY_CHAIN.MANUFACTURING_CODES.A_SUPPLY_CHAIN_NODES",
     "A_PLANT":                    "SAP_SUPPLY_CHAIN.PLANT.A_PLANT",
+    "LINEAGE_COUNTS":             "SAP_SUPPLY_CHAIN.ANALYTICS.LINEAGE_COUNTS",
 }
 PKG = "SUPPLY_CHAIN_360_PKG"
 

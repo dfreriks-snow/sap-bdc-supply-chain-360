@@ -29,7 +29,7 @@ export type PageId =
   | 'ontology'
   | 'optimization'
   | 'forecasting'
-  | 'bdc'
+  | 'lineage'
   | 'analyst';
 
 export interface NavItem {
@@ -50,7 +50,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'ontology', label: 'Supply Chain Ontology', icon: Network },
   { id: 'optimization', label: 'SC Optimization', icon: Sparkles },
   { id: 'forecasting', label: 'SC Forecasting', icon: TrendingUp },
-  { id: 'bdc', label: 'BDC Data Products', icon: Database },
+  { id: 'lineage', label: 'BDC Sources & Lineage', icon: GitBranch },
   { id: 'analyst', label: 'Cortex Analyst', icon: Bot },
 ];
 

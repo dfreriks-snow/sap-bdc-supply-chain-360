@@ -23,11 +23,9 @@ COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/server/package.json ./server/package.json
 COPY --from=build /app/server/dist ./server/dist
 COPY --from=build /app/client/dist ./client/dist
-COPY --from=build /app/sap_data_products_full.json ./sap_data_products_full.json
 
 # SPCS listens on this port; align with service_spec.yml + readinessProbe
 ENV PORT=8080
 ENV CLIENT_DIST=/app/client/dist
-ENV DATA_PRODUCTS_PATH=/app/sap_data_products_full.json
 EXPOSE 8080
 CMD ["node", "server/dist/index.js"]
