@@ -68,7 +68,14 @@ def upgrade(target, wh, label):
         cur.execute(f"ALTER APPLICATION PACKAGE {PKG} MODIFY RELEASE CHANNEL DEFAULT "
                     f"SET DEFAULT RELEASE DIRECTIVE VERSION={VERSION} PATCH={patch}")
         print(f"{target}: DEFAULT channel -> {VERSION}.{patch}")
-        cur.execute(f"ALTER APPLICATION {APP} UPGRADE USING VERSION {VERSION} PATCH {patch}")
+        # An install that follows a release channel takes the channel's directive
+        # (often already applied by the time we get here); UPGRADE USING VERSION
+        # is rejected for it, so a plain UPGRADE is the right call.
+        cur.execute(f"DESCRIBE APPLICATION {APP}")
+        if dict((r[0], r[1]) for r in cur.fetchall()).get("release_channel_name"):
+            cur.execute(f"ALTER APPLICATION {APP} UPGRADE")
+        else:
+            cur.execute(f"ALTER APPLICATION {APP} UPGRADE USING VERSION {VERSION} PATCH {patch}")
     cur.execute(f"CALL {APP}.CORE.VERSION_INIT()")
     print(f"{target}: {APP} upgraded; {cur.fetchone()[0]}")
 

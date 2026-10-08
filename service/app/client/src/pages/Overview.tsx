@@ -4,7 +4,7 @@ import { useQuery } from '@/hooks/useQuery';
 import { fetchOverview, fetchProduction } from '@/lib/api';
 import MetricCard, { Factory, CheckCircle2, Timer, TrendingUp, Gauge, Trash2, Truck, RotateCw } from '@/components/MetricCard';
 import ChartCard from '@/components/ChartCard';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '@/components/Chart';
 
 // Vibrant palette
 const PALETTE = ['#06b6d4', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#ec4899'];
@@ -93,7 +93,7 @@ export default function Overview() {
   // Format dates for display
   const formatDate = (d: string) => {
     const date = new Date(d);
-    return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    return date.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', year: '2-digit' });
   };
 
   // ── OEE Line Chart Options ──
@@ -193,7 +193,7 @@ export default function Overview() {
     animationEasing: 'elasticOut',
   };
 
-  // ── Scrap Donut Chart ──
+  // ── Scrap rate by plant (ranked bar via Chart policy) ──
   const scrapOption = {
     tooltip: {
       trigger: 'item',

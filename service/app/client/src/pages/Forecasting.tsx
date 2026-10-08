@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '@/components/Chart';
 import { useFilters } from '@/hooks/useFilters';
 import { useQuery } from '@/hooks/useQuery';
 import { fetchForecasting } from '@/lib/api';

@@ -13,6 +13,9 @@ import {
   Network,
   Sparkles,
   TrendingUp,
+  ClipboardCheck,
+  Activity,
+  Boxes,
 } from 'lucide-react';
 import { useFilters } from '@/hooks/useFilters';
 import { cn } from '@/lib/utils';
@@ -23,6 +26,9 @@ export type PageId =
   | 'bom'
   | 'inventory'
   | 'logistics'
+  | 'fulfillment'
+  | 'equipment'
+  | 'components'
   | 'workcenter'
   | 'projects'
   | 'supplychain'
@@ -44,6 +50,9 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'bom', label: 'Bill of Materials', icon: GitBranch },
   { id: 'inventory', label: 'Inventory & Warehouse', icon: Warehouse },
   { id: 'logistics', label: 'Logistics & Delivery', icon: Truck },
+  { id: 'fulfillment', label: 'Fulfillment & Constraints', icon: ClipboardCheck },
+  { id: 'equipment', label: 'Equipment Health', icon: Activity },
+  { id: 'components', label: 'Components & Digital Thread', icon: Boxes },
   { id: 'workcenter', label: 'Work Center & Capacity', icon: Settings },
   { id: 'projects', label: 'Project Management', icon: FolderKanban },
   { id: 'supplychain', label: 'Supply Chain Map', icon: Globe },
@@ -83,7 +92,7 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
       {/* Logo */}
       <div className="flex flex-col gap-1.5 border-b border-white/10 px-5 py-4">
         <img
-          src="/snowflake_logo.svg"
+          src={`${import.meta.env.BASE_URL}snowflake_logo.svg`}
           alt="Snowflake"
           className="h-7 w-auto self-start"
         />

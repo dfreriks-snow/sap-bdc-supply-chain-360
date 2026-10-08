@@ -4,7 +4,7 @@ import MetricCard, { Factory, CheckCircle2, Timer, TrendingUp } from '@/componen
 import ChartCard from '@/components/ChartCard';
 import DataTable from '@/components/DataTable';
 import * as Tabs from '@radix-ui/react-tabs';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '@/components/Chart';
 
 const PALETTE = ['#06b6d4', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#ec4899'];
 const tabClass = 'px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:border-b-2 data-[state=active]:border-sf-primary data-[state=active]:text-sf-dark';
@@ -53,7 +53,7 @@ export default function Logistics() {
   const monthlyOtd = months.map((m) => +(100 * monthAgg[m].onTime / monthAgg[m].total).toFixed(1));
   const formatMonth = (d: string) => {
     const date = new Date(d);
-    return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    return date.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', year: '2-digit' });
   };
 
   // ── Delay distribution buckets ──

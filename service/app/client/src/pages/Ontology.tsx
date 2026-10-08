@@ -1,13 +1,107 @@
 import { useMemo, useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '@/components/Chart';
 import { useQuery } from '@/hooks/useQuery';
 import { fetchOntology } from '@/lib/api';
 import MetricCard, { Factory, CheckCircle2, Timer, TrendingUp } from '@/components/MetricCard';
 import ChartCard from '@/components/ChartCard';
 import DataTable from '@/components/DataTable';
+import { ExternalLink, Network } from 'lucide-react';
 
 const PALETTE = ['#06b6d4', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#ec4899'];
+
+// ---------------------------------------------------------------------------
+// Link out to the companion Supply Chain Ontology app
+//
+// That app is a separate React app over the same network, and goes deeper than
+// this page does: BDC ontology coverage, graph traversal, and the disruption
+// scenario modelling (ripple propagation and AI mitigation planning).
+//
+// It keeps its current page in the URL hash, so these links land directly on the
+// page named rather than dropping you on its Overview.
+// Override the base with VITE_ONTOLOGY_APP_URL if you host it elsewhere.
+// ---------------------------------------------------------------------------
+const ONTOLOGY_APP_PUBLIC =
+  import.meta.env.VITE_ONTOLOGY_APP_URL ??
+  'https://sfc-gh-dfreriks.github.io/supply-chain-ontology/';
+const ONTOLOGY_APP_LOCAL = 'http://localhost:5179/';
+
+const DEEP_LINKS = [
+  { hash: 'scenario',   label: 'Scenario Studio',
+    blurb: 'Pick a disruption — hurricane, supplier failure, lane closure' },
+  { hash: 'ripple',     label: 'Ripple Map',
+    blurb: 'Watch the impact propagate hop by hop across the network' },
+  { hash: 'mitigation', label: 'Mitigation Plan',
+    blurb: 'Reroutes, spare capacity, and what cannot be saved' },
+  { hash: 'demo',       label: 'Guided Demo',
+    blurb: 'Seven annotated steps showing which control to click' },
+];
+
+function OntologyAppLink() {
+  return (
+    <div className="rounded-xl border border-sf-primary/30 bg-gradient-to-br from-sky-50 via-white to-cyan-50 p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-2xl">
+          <div className="flex items-center gap-2">
+            <Network className="h-5 w-5 text-sf-primary" />
+            <h3 className="text-base font-bold text-sf-dark">
+              Supply Chain Ontology app
+            </h3>
+            <span className="rounded-full bg-sf-primary/10 px-2 py-0.5 text-[11px] font-medium text-sf-primary">
+              companion app
+            </span>
+          </div>
+          <p className="mt-1.5 text-sm leading-relaxed text-sf-dark/70">
+            This page shows the entity graph and BOM structure. The companion app goes
+            further on the same network — SAP BDC ontology coverage, graph traversal,
+            and disruption scenario modelling that propagates a shock through the
+            network and plans the reroutes around it.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-col gap-2">
+          <a
+            href={ONTOLOGY_APP_PUBLIC}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-sf-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+          >
+            Open the ontology app
+            <ExternalLink className="h-4 w-4" />
+          </a>
+          {import.meta.env.VITE_STATIC !== '1' && (
+          <a
+            href={ONTOLOGY_APP_LOCAL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center gap-1.5 text-xs text-sf-dark/60 underline decoration-dotted transition hover:text-sf-primary"
+            title="Needs the ontology app running locally on port 5179"
+          >
+            or open the local build on :5179
+          </a>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-2 border-t border-sf-primary/15 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+        {DEEP_LINKS.map((d) => (
+          <a
+            key={d.hash}
+            href={`${ONTOLOGY_APP_PUBLIC.replace(/\/$/, '')}/#${d.hash}`}
+            target="_blank"
+            rel="noreferrer"
+            className="group rounded-lg border border-gray-200 bg-white/70 px-3 py-2.5 transition hover:border-sf-primary/50 hover:bg-white hover:shadow-sm"
+          >
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-sf-dark group-hover:text-sf-primary">
+              {d.label}
+              <ExternalLink className="h-3 w-3 opacity-0 transition group-hover:opacity-60" />
+            </div>
+            <div className="mt-0.5 text-[11px] leading-snug text-sf-dark/55">{d.blurb}</div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const tabClass =
   'px-4 py-2 text-sm font-medium text-sf-dark/60 data-[state=active]:text-sf-primary data-[state=active]:border-b-2 data-[state=active]:border-sf-primary';
@@ -238,7 +332,8 @@ export default function Ontology() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
+        <OntologyAppLink />
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="h-32 animate-pulse rounded-xl bg-sky-100/60" />
         ))}
@@ -247,15 +342,27 @@ export default function Ontology() {
   }
 
   if (error) {
-    return <div className="rounded-xl bg-red-50 p-4 text-red-700">Error: {error}</div>;
+    return (
+      <div className="space-y-6">
+        <OntologyAppLink />
+        <div className="rounded-xl bg-red-50 p-4 text-red-700">Error: {error}</div>
+      </div>
+    );
   }
 
   if (!data) {
-    return <p className="py-4 text-center text-sm text-gray-400">No data available</p>;
+    return (
+      <div className="space-y-6">
+        <OntologyAppLink />
+        <p className="py-4 text-center text-sm text-gray-400">No data available</p>
+      </div>
+    );
   }
 
   return (
-    <Tabs.Root defaultValue="graph">
+    <div className="space-y-6">
+      <OntologyAppLink />
+      <Tabs.Root defaultValue="graph">
       <Tabs.List className="mb-6 flex gap-1 border-b border-gray-200">
         <Tabs.Trigger value="graph" className={tabClass}>Entity Graph</Tabs.Trigger>
         <Tabs.Trigger value="bom" className={tabClass}>BOM Hierarchy</Tabs.Trigger>
@@ -497,6 +604,7 @@ export default function Ontology() {
           />
         </ChartCard>
       </Tabs.Content>
-    </Tabs.Root>
+      </Tabs.Root>
+    </div>
   );
 }

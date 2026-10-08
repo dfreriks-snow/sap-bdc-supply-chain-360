@@ -19,9 +19,11 @@ sap-bdc-supply-chain-360/
 │   ├── 02_appref_serving_views.sql Serving — APP_REF app-facing views
 │   ├── 03_l2_analytics_dynamic_tables.sql  L2 gold — ANALYTICS dynamic tables
 │   ├── 04_semantic_view.sql        SAP_SUPPLY_CHAIN_360 semantic view
-│   └── 05_cortex_agent.sql         SAP_SC360_ANALYST_AGENT
+│   ├── 05_cortex_agent.sql         SAP_SC360_ANALYST_AGENT
+│   └── 06_ops_ext_dynamic_tables.sql  L2 gold — OPS_EXT demo enrichment (fulfillment, loss tree, equipment, cover, genealogy)
 ├── app/                 Native App package (manifest, setup.sql, spec, snowflake.yml)
 ├── service/app/         React (Vite) client + Express server + Dockerfile
+├── tools/               gen_ops_ext.py (seeds OPS_EXT) · presales kit + deck generators
 ├── scripts/             build_and_push · migrate_data · deploy_native_app · create_org_listing
 └── docs/                ARCHITECTURE.md · INSTALL.md · DEMO_GUIDE.md · demo deck (.pptx)
 ```
@@ -36,7 +38,8 @@ Full detail (diagram + per-table content): [`docs/ARCHITECTURE.md`](docs/ARCHITE
 
 ## Quick start
 
-- **Build the data platform + agent:** run `sql/02` → `sql/05` as
+- **Build the data platform + agent:** run `sql/02` → `sql/06` as (seed `OPS_EXT` first with
+  `python3 tools/gen_ops_ext.py`)
   `ACCOUNTADMIN`, then chat with `SAP_SC360_ANALYST_AGENT` in Snowflake
   Intelligence.
 - **Deploy the Native App:** `build_and_push.sh` → `migrate_data.py` →
@@ -50,6 +53,19 @@ A React dashboard covering **production, inventory, logistics, work centers,
 projects, supplier quality and a live supply-chain map**, plus an **Ask the
 Agent** page (Cortex Analyst over the bundled `SAP_SUPPLY_CHAIN_360` semantic
 view).
+
+Three pages run on the **OPS_EXT** demo enrichment — synthetic but keyed to the
+SAP plants, work centers, BOM and suppliers, so they join cleanly to the BDC data:
+
+| Page | What it shows |
+|---|---|
+| Order Fulfillment | OTIF by plant and month, late orders by root cause, and the late cost (0.5%/day penalty capped at 5%, plus expedite) |
+| Equipment Health | 48-hour failure probability, vibration and temperature trends, the outage log and repair cost |
+| Components | Days of cover against supplier lead time; cover below lead time means the shortage is already locked in |
+
+Most pages also carry **Ask Cortex**: `SNOWFLAKE.CORTEX.COMPLETE` over SQL facts
+for the view on screen, so the answer quotes the numbers shown. The OPS_EXT
+figures are representative, not customer data — say so when demoing them.
 
 ## Live reference deployment
 

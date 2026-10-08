@@ -4,7 +4,7 @@ import MetricCard, { Factory, CheckCircle2, Timer, TrendingUp } from '@/componen
 import ChartCard from '@/components/ChartCard';
 import DataTable from '@/components/DataTable';
 import * as Tabs from '@radix-ui/react-tabs';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '@/components/Chart';
 
 const PALETTE = ['#06b6d4', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#ec4899'];
 const tabClass = 'px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:border-b-2 data-[state=active]:border-sf-primary data-[state=active]:text-sf-dark';
@@ -53,7 +53,7 @@ export default function Projects() {
   // Over budget alerts
   const overBudget = projects.filter((p) => p.budget_variance_pct > 5);
 
-  // ── ECharts: Status Donut ──
+  // ── ECharts: Status (ranked bar via Chart policy) ──
   const statusOption = {
     tooltip: {
       trigger: 'item',

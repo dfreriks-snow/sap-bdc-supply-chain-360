@@ -14,8 +14,13 @@ create or replace semantic view SAP_SUPPLY_CHAIN.ANALYTICS.SAP_SUPPLY_CHAIN_360
 		DELIVERY_PERFORMANCE as SAP_SUPPLY_CHAIN.ANALYTICS.DT_DELIVERY_PERFORMANCE primary key (DELIVERY_ID) comment='Outbound delivery tracking with on-time performance, delay analysis, and shipping point metrics for logistics monitoring.',
 		SUPPLIER_QUALITY as SAP_SUPPLY_CHAIN.ANALYTICS.DT_SUPPLIER_QUALITY comment='Quarterly supplier performance scoring including defect rates, on-time delivery percentages, and composite quality scores per material.',
 		PROJECT_STATUS as SAP_SUPPLY_CHAIN.ANALYTICS.DT_PROJECT_STATUS comment='Capital and operational project tracking with budget variance, completion percentage, and WBS element breakdown.',
-		SUPPLY_CHAIN_GEO as SAP_SUPPLY_CHAIN.ANALYTICS.DT_SUPPLY_CHAIN_GEO comment='Geographic supply chain flow data showing material movements between suppliers, plants, and distribution centers with coordinates for map visualization.'
-	)
+		SUPPLY_CHAIN_GEO as SAP_SUPPLY_CHAIN.ANALYTICS.DT_SUPPLY_CHAIN_GEO comment='Geographic supply chain flow data showing material movements between suppliers, plants, and distribution centers with coordinates for map visualization.',
+    ORDER_FULFILLMENT as SAP_SUPPLY_CHAIN.ANALYTICS.DT_ORDER_FULFILLMENT primary key (SALES_ORDER) comment='Customer sales order lines with on-time-in-full (OTIF), delay days, root cause of lateness and late cost (penalty plus expedite). Demo enrichment keyed to SAP plants and materials.',
+    OPERATING_RATE as SAP_SUPPLY_CHAIN.ANALYTICS.DT_OPERATING_RATE comment='Monthly operating-rate loss tree per plant in system units: nameplate split into planned downtime, equipment outage loss, component shortage loss, performance loss and produced units. Demo enrichment.',
+    EQUIPMENT_HEALTH as SAP_SUPPLY_CHAIN.ANALYTICS.DT_EQUIPMENT_HEALTH comment='Daily health readings per production tool (vibration, temperature, 48-hour failure probability, anomaly flag). Demo enrichment keyed to SAP work centers.',
+    EQUIPMENT_OUTAGE as SAP_SUPPLY_CHAIN.ANALYTICS.DT_EQUIPMENT_OUTAGE primary key (OUTAGE_ID) comment='Equipment outage events with downtime hours, root cause and repair cost. Demo enrichment.',
+    COMPONENT_COVER as SAP_SUPPLY_CHAIN.ANALYTICS.DT_COMPONENT_COVER comment='Component days of cover versus supplier lead time per plant, with open PO quantity and status (Critical/Watch/OK). Demo enrichment keyed to the SAP BOM.'
+  )
 	relationships (
 		DT_PRODUCTION_ORDER_360_TO_DT_INVENTORY_OVERVIEW as PRODUCTION_ORDER(MATERIAL,PLANT) references INVENTORY_OVERVIEW(MATERIAL,PLANT),
 		DT_DELIVERY_PERFORMANCE_TO_DT_INVENTORY_OVERVIEW as DELIVERY_PERFORMANCE(MATERIAL) references INVENTORY_OVERVIEW(MATERIAL),
@@ -53,8 +58,31 @@ create or replace semantic view SAP_SUPPLY_CHAIN.ANALYTICS.SAP_SUPPLY_CHAIN_360
 		SUPPLY_CHAIN_GEO.SOURCE_LAT as SOURCE_LAT comment='Latitude coordinate of the source location for map visualization.',
 		SUPPLY_CHAIN_GEO.SOURCE_LON as SOURCE_LON comment='Longitude coordinate of the source location for map visualization.',
 		SUPPLY_CHAIN_GEO.TARGET_LAT as TARGET_LAT comment='Latitude coordinate of the target location for map visualization.',
-		SUPPLY_CHAIN_GEO.TARGET_LON as TARGET_LON comment='Longitude coordinate of the target location for map visualization.'
-	)
+		SUPPLY_CHAIN_GEO.TARGET_LON as TARGET_LON comment='Longitude coordinate of the target location for map visualization.',
+    ORDER_FULFILLMENT.ORDER_QTY as ORDER_QTY comment='Systems ordered on the sales order line.',
+    ORDER_FULFILLMENT.NET_VALUE_USD as NET_VALUE_USD comment='Net order value in USD.',
+    ORDER_FULFILLMENT.DELAY_DAYS as DELAY_DAYS comment='Days the order shipped after the requested ship date (0 if on time).',
+    ORDER_FULFILLMENT.PENALTY_USD as PENALTY_USD comment='Late-delivery penalty: 0.5% of order value per day late, capped at 5%.',
+    ORDER_FULFILLMENT.EXPEDITE_USD as EXPEDITE_USD comment='Expedite freight paid to recover a late order.',
+    ORDER_FULFILLMENT.LATE_COST_USD as LATE_COST_USD comment='Total late cost = penalty + expedite.',
+    OPERATING_RATE.NAMEPLATE_UNITS as NAMEPLATE_UNITS comment='Nameplate capacity in systems for the plant-month.',
+    OPERATING_RATE.PLANNED_DOWNTIME_UNITS as PLANNED_DOWNTIME_UNITS comment='Capacity lost to planned maintenance.',
+    OPERATING_RATE.EQUIPMENT_LOSS_UNITS as EQUIPMENT_LOSS_UNITS comment='Capacity lost to unplanned equipment outages.',
+    OPERATING_RATE.MATERIAL_SHORTAGE_UNITS as MATERIAL_SHORTAGE_UNITS comment='Capacity lost to component shortages.',
+    OPERATING_RATE.PERFORMANCE_LOSS_UNITS as PERFORMANCE_LOSS_UNITS comment='Capacity lost to running below planned rate with no outage.',
+    OPERATING_RATE.PRODUCED_UNITS as PRODUCED_UNITS comment='Systems actually produced.',
+    OPERATING_RATE.OPERATING_RATE_PCT as OPERATING_RATE_PCT comment='Produced / nameplate x 100.',
+    EQUIPMENT_HEALTH.VIBRATION_MM_S as VIBRATION_MM_S comment='Vibration velocity in mm/s; rising values precede bearing and stage failures.',
+    EQUIPMENT_HEALTH.TEMPERATURE_C as TEMPERATURE_C comment='Tool temperature in degrees C.',
+    EQUIPMENT_HEALTH.FAILURE_PROB_48H as FAILURE_PROB_48H comment='Modelled probability of failure within 48 hours (0-1).',
+    EQUIPMENT_OUTAGE.DOWNTIME_HRS as DOWNTIME_HRS comment='Hours the tool was down.',
+    EQUIPMENT_OUTAGE.REPAIR_COST_USD as REPAIR_COST_USD comment='Repair cost in USD.',
+    COMPONENT_COVER.ON_HAND_QTY as ON_HAND_QTY comment='Component units on hand at the plant.',
+    COMPONENT_COVER.DAILY_USAGE as DAILY_USAGE comment='Average component units consumed per day.',
+    COMPONENT_COVER.DAYS_OF_COVER as DAYS_OF_COVER comment='On-hand quantity / daily usage, in days.',
+    COMPONENT_COVER.SUPPLIER_LEAD_TIME_DAYS as SUPPLIER_LEAD_TIME_DAYS comment='Supplier replenishment lead time in days. Cover below lead time means a shortage is locked in.',
+    COMPONENT_COVER.OPEN_PO_QTY as OPEN_PO_QTY comment='Open purchase order quantity for the component.'
+  )
 	dimensions (
 		MANUFACTURING_KPI.PLANT as PLANT comment='SAP plant code (e.g. SJ01=San Jose, AU01=Austin, DR01=Dresden, SG01=Singapore, PN01=Penang).',
 		MANUFACTURING_KPI.PLANT_NAME as PLANT_NAME comment='Full plant name (San Jose HQ, Austin Fab, Dresden Fab, Singapore Hub, Penang Assembly).',
@@ -130,11 +158,67 @@ create or replace semantic view SAP_SUPPLY_CHAIN.ANALYTICS.SAP_SUPPLY_CHAIN_360
 		SUPPLY_CHAIN_GEO.TARGET_TYPE as TARGET_TYPE comment='Type of target location (Plant, Distribution Center, Customer).',
 		SUPPLY_CHAIN_GEO.TARGET_CITY as TARGET_CITY comment='City where the target location is based.',
 		SUPPLY_CHAIN_GEO.TARGET_COUNTRY as TARGET_COUNTRY comment='Country where the target location is based.',
-		SUPPLY_CHAIN_GEO.TARGET_PLANT as TARGET_PLANT comment='SAP plant code of the target location (if a plant).'
-	)
+		SUPPLY_CHAIN_GEO.TARGET_PLANT as TARGET_PLANT comment='SAP plant code of the target location (if a plant).',
+    ORDER_FULFILLMENT.SALES_ORDER as SALES_ORDER comment='SAP sales order number.',
+    ORDER_FULFILLMENT.SOLD_TO as SOLD_TO comment='Customer (sold-to party), e.g. TSMC, Samsung Foundry, Intel.',
+    ORDER_FULFILLMENT.MATERIAL_DESC as MATERIAL_DESC comment='Inspection system ordered.',
+    ORDER_FULFILLMENT.PLANT_NAME as PLANT_NAME comment='Plant that builds and ships the order.',
+    ORDER_FULFILLMENT.REQUESTED_SHIP_DATE as REQUESTED_SHIP_DATE comment='Customer requested ship date.',
+    ORDER_FULFILLMENT.ACTUAL_SHIP_DATE as ACTUAL_SHIP_DATE comment='Actual ship date (null if still open).',
+    ORDER_FULFILLMENT.SHIP_MONTH as SHIP_MONTH comment='Month of the requested ship date.',
+    ORDER_FULFILLMENT.OTIF as OTIF comment='TRUE when the order shipped on time and in full.',
+    ORDER_FULFILLMENT.ON_TIME as ON_TIME comment='TRUE when the order shipped on or before the requested date.',
+    ORDER_FULFILLMENT.LATE_CAUSE_LABEL as LATE_CAUSE_LABEL comment='Root cause of lateness: Component shortage, Equipment outage, Quality hold, Rate below plan, Logistics / carrier, or On time.',
+    ORDER_FULFILLMENT.ORDER_STATUS as ORDER_STATUS comment='Shipped, Open, or Open - at risk.',
+    OPERATING_RATE.PLANT_NAME as PLANT_NAME comment='Plant name for the loss tree.',
+    OPERATING_RATE.PERIOD_DATE as PERIOD_DATE comment='Month of the loss tree.',
+    OPERATING_RATE.BINDING_CONSTRAINT as BINDING_CONSTRAINT comment='Whether Equipment or Components cost more capacity that month.',
+    EQUIPMENT_HEALTH.EQUIPMENT_ID as EQUIPMENT_ID comment='Tool identifier, e.g. EQ-LIT2-1.',
+    EQUIPMENT_HEALTH.EQUIPMENT_NAME as EQUIPMENT_NAME comment='Tool name, e.g. Stepper LIT2-1.',
+    EQUIPMENT_HEALTH.EQUIPMENT_TYPE as EQUIPMENT_TYPE comment='Tool type (Stepper, Plasma Etcher, CVD Chamber, ...).',
+    EQUIPMENT_HEALTH.WORK_CENTER_DESC as WORK_CENTER_DESC comment='Work center the tool belongs to.',
+    EQUIPMENT_HEALTH.PLANT_NAME as PLANT_NAME comment='Plant where the tool is installed.',
+    EQUIPMENT_HEALTH.CRITICALITY as CRITICALITY comment='Asset criticality A (highest) to C.',
+    EQUIPMENT_HEALTH.READING_DATE as READING_DATE comment='Date of the health reading. Use the latest date for current risk.',
+    EQUIPMENT_HEALTH.ANOMALY_FLAG as ANOMALY_FLAG comment='TRUE when the reading is anomalous (failure probability above 35%).',
+    EQUIPMENT_OUTAGE.OUTAGE_ID as OUTAGE_ID comment='Outage event id.',
+    EQUIPMENT_OUTAGE.EQUIPMENT_NAME as EQUIPMENT_NAME comment='Tool that went down.',
+    EQUIPMENT_OUTAGE.PLANT_NAME as PLANT_NAME comment='Plant of the outage.',
+    EQUIPMENT_OUTAGE.START_DATE as START_DATE comment='Date the outage started.',
+    EQUIPMENT_OUTAGE.EVENT_TYPE as EVENT_TYPE comment='Failure, Corrective, or Planned PM.',
+    EQUIPMENT_OUTAGE.ROOT_CAUSE as ROOT_CAUSE comment='Root cause recorded for the outage.',
+    COMPONENT_COVER.PLANT_NAME as PLANT_NAME comment='Plant holding the component.',
+    COMPONENT_COVER.COMPONENT_DESC as COMPONENT_DESC comment='Component description, e.g. High-Res CCD Array.',
+    COMPONENT_COVER.SUPPLIER_NAME as SUPPLIER_NAME comment='Supplier of the component.',
+    COMPONENT_COVER.STATUS as STATUS comment='Critical (<7 days), Watch (<15 days) or OK.'
+  )
 	comment='Unified semantic model for SAP Supply Chain analytics covering production planning, bill of materials, work center capacity, inventory management, logistics delivery performance, supplier quality, project management, and manufacturing KPIs. Built from 16 SAP BDC Supply Chain data products with 177 entities.'
-	ai_sql_generation 'This semantic view covers SAP supply chain data across 9 tables. Use MANUFACTURING_KPI for OEE, cycle time, scrap rate, and plant-level KPI trends. Use PRODUCTION_ORDER for order-level yield, scrap, and cycle time by material or work center. Use BOM_EXPLOSION for component cost rollup and bill-of-materials analysis. Use WORK_CENTER_UTILIZATION to identify bottlenecks (utilization > 85%). Use INVENTORY_OVERVIEW as the hub table for material/plant-level stock, value, and turnover. INVENTORY_OVERVIEW is linked to PRODUCTION_ORDER, DELIVERY_PERFORMANCE, and SUPPLIER_QUALITY via MATERIAL (and PLANT where applicable). Use DELIVERY_PERFORMANCE for on-time delivery rates and delay analysis. Use SUPPLIER_QUALITY for supplier scorecards and defect trends. Use PROJECT_STATUS for budget variance and project completion. Use SUPPLY_CHAIN_GEO for geographic flow visualization.'
+	ai_sql_generation 'This semantic view covers SAP supply chain data across 14 tables. Use MANUFACTURING_KPI for OEE, cycle time, scrap rate, and plant-level KPI trends. Use PRODUCTION_ORDER for order-level yield, scrap, and cycle time by material or work center. Use BOM_EXPLOSION for component cost rollup and bill-of-materials analysis. Use WORK_CENTER_UTILIZATION to identify bottlenecks (utilization > 85%). Use INVENTORY_OVERVIEW as the hub table for material/plant-level stock, value, and turnover. INVENTORY_OVERVIEW is linked to PRODUCTION_ORDER, DELIVERY_PERFORMANCE, and SUPPLIER_QUALITY via MATERIAL (and PLANT where applicable). Use DELIVERY_PERFORMANCE for on-time delivery rates and delay analysis. Use SUPPLIER_QUALITY for supplier scorecards and defect trends. Use PROJECT_STATUS for budget variance and project completion. Use SUPPLY_CHAIN_GEO for geographic flow visualization. Use ORDER_FULFILLMENT for customer OTIF, late orders, late cause and late cost. Use OPERATING_RATE for the capacity loss tree and the binding constraint per plant. Use EQUIPMENT_HEALTH (latest READING_DATE per tool) for failure risk; EQUIPMENT_OUTAGE for downtime history and repair cost. Use COMPONENT_COVER for component shortages and days of cover vs lead time. Order, equipment and component tables are representative demo enrichment.'
 	ai_verified_queries (
+    OTIF_BY_LATE_CAUSE AS (
+QUESTION 'What is driving late customer orders and what does it cost?'
+VERIFIED_AT 1791504000
+VERIFIED_BY '(source=ops_ext)'
+ONBOARDING_QUESTION true
+SQL 'SELECT LATE_CAUSE_LABEL, COUNT(*) AS ORDERS, SUM(LATE_COST_USD) AS LATE_COST_USD FROM SAP_SUPPLY_CHAIN.ANALYTICS.DT_ORDER_FULFILLMENT WHERE NOT ON_TIME GROUP BY LATE_CAUSE_LABEL ORDER BY LATE_COST_USD DESC'),
+    TOOLS_AT_RISK AS (
+QUESTION 'Which tools have the highest failure risk right now?'
+VERIFIED_AT 1791504000
+VERIFIED_BY '(source=ops_ext)'
+ONBOARDING_QUESTION true
+SQL 'SELECT EQUIPMENT_NAME, PLANT_NAME, FAILURE_PROB_48H, ANOMALY_FLAG FROM SAP_SUPPLY_CHAIN.ANALYTICS.DT_EQUIPMENT_HEALTH QUALIFY ROW_NUMBER() OVER (PARTITION BY EQUIPMENT_ID ORDER BY READING_DATE DESC) = 1 ORDER BY FAILURE_PROB_48H DESC LIMIT 10'),
+    CRITICAL_COMPONENTS AS (
+QUESTION 'Which components are below supplier lead time on cover?'
+VERIFIED_AT 1791504000
+VERIFIED_BY '(source=ops_ext)'
+ONBOARDING_QUESTION false
+SQL 'SELECT PLANT_NAME, COMPONENT_DESC, SUPPLIER_NAME, DAYS_OF_COVER, SUPPLIER_LEAD_TIME_DAYS FROM SAP_SUPPLY_CHAIN.ANALYTICS.DT_COMPONENT_COVER WHERE DAYS_OF_COVER < SUPPLIER_LEAD_TIME_DAYS ORDER BY DAYS_OF_COVER'),
+    OPERATING_RATE_BY_PLANT AS (
+QUESTION 'What is the operating rate and binding constraint by plant?'
+VERIFIED_AT 1791504000
+VERIFIED_BY '(source=ops_ext)'
+ONBOARDING_QUESTION false
+SQL 'SELECT PLANT_NAME, ROUND(100 * SUM(PRODUCED_UNITS) / SUM(NAMEPLATE_UNITS), 1) AS OPERATING_RATE_PCT, SUM(EQUIPMENT_LOSS_UNITS) AS EQUIPMENT_LOSS, SUM(MATERIAL_SHORTAGE_UNITS) AS COMPONENT_LOSS FROM SAP_SUPPLY_CHAIN.ANALYTICS.DT_OPERATING_RATE GROUP BY PLANT_NAME ORDER BY OPERATING_RATE_PCT'),
 		MONTHLY_OEE_BY_PLANT AS ( 
 QUESTION 'What is the monthly OEE trend by plant?' 
 VERIFIED_AT 1774984280
