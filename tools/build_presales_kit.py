@@ -8,19 +8,21 @@ Mirrors the Supply Chain Ontology kit so the two read as a set:
     05_Architecture_and_Install.docx the medallion stack and how to stand it up
     06_Setup_and_Access.docx        the three region deployments and how to get in
 
-Every figure below was verified against the account on 2026-09-21 rather than
+Every figure below was verified against the account on 2026-10-08 rather than
 copied from existing docs, because several of those disagreed with each other:
 
     16 domain schemas, 21 A_* L0 objects, 398 L0 rows   INFORMATION_SCHEMA
-    9 L2 dynamic tables, 11 APP_REF serving views       SHOW / INFORMATION_SCHEMA
-    32 facts, 75 dimensions, 8 verified queries         DESCRIBE SEMANTIC VIEW
-    13 app pages                                        client/src/components/Sidebar.tsx
+    15 L2 dynamic tables (9 BDC + 6 OPS_EXT), 17 APP_REF views  INFORMATION_SCHEMA
+    14 tables, 55 facts, 107 dimensions, 12 verified queries  DESCRIBE SEMANTIC VIEW
+    16 app pages                                        client/src/components/Sidebar.tsx
     data window Jan 2025 - Sep 2025                     MIN/MAX over the fact tables
 
     python3 tools/build_presales_kit.py
 """
 
 import pathlib
+import shutil
+import subprocess
 import sys
 
 from docx import Document
@@ -44,9 +46,10 @@ from docx_kit import (  # noqa: E402
 )
 
 KIT = pathlib.Path.home() / "Documents" / "SAP" / "Supply_Chain_360_Presales_Kit"
-DATE = "21 September 2026"
+DATE = "8 October 2026"
 
 REPO_URL = "https://github.com/sfc-gh-dfreriks/sap-bdc-supply-chain-360"
+VIDEO_SRC = pathlib.Path.home() / "Documents" / "SAP" / "SAP_Supply_Chain_360_Demo.mp4"
 APP_LISTING = "ORGDATACLOUD$INTERNAL$SUPPLY_CHAIN_360_ORG"
 SHARE_LISTING = "ORGDATACLOUD$INTERNAL$SAP_BDC_SUPPLY_CHAIN_360"
 
@@ -62,18 +65,21 @@ PAGES = [
     ("Bill of Materials", "Multi-level BOM with component costs"),
     ("Inventory & Warehouse", "Stock positions, days of inventory, obsolescence"),
     ("Logistics & Delivery", "Outbound deliveries, on-time %, delay analysis"),
+    ("Fulfillment & Constraints", "OTIF, late cost by root cause, operating-rate loss tree (OPS_EXT)"),
+    ("Equipment Health", "48-hour failure risk, vibration trends, outages and repair cost (OPS_EXT)"),
+    ("Components & Digital Thread", "Days of cover vs lead time; serial-to-lot genealogy (OPS_EXT)"),
     ("Work Center & Capacity", "Capacity vs used hours — where the bottlenecks are"),
     ("Project Management", "Budget variance and completion %"),
     ("Supply Chain Map", "Supplier, plant and customer flows on a globe"),
     ("Supply Chain Ontology", "The class model behind the network"),
     ("SC Optimization", "Reroute and mitigation exploration"),
     ("SC Forecasting", "Forward-looking demand and supply signals"),
-    ("BDC Data Products", "The SAP BDC catalog the data came from"),
+    ("BDC Sources & Lineage", "The SAP BDC products behind each page, with row counts"),
     ("Cortex Analyst", "Natural-language questions over the semantic view"),
 ]
 
 # The eight suggestion chips on the app's Cortex Analyst page, read off the UI.
-# They correspond to the eight AI_VERIFIED_QUERY entries in the semantic view.
+# Each corresponds to one of the twelve AI_VERIFIED_QUERY entries in the semantic view.
 AGENT_QUESTIONS = [
     "What is the monthly OEE trend by plant?",
     "Which work centers have the highest utilization?",
@@ -86,6 +92,22 @@ AGENT_QUESTIONS = [
 ]
 
 DATA_WINDOW = "January 2025 to September 2025"
+
+
+def kit_video(src):
+    """Copy the walkthrough into the kit under a name carrying its real length,
+    replacing any older cut, and return that name for the file table."""
+    secs = float(subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(src)],
+        check=True, capture_output=True, text=True).stdout)
+    name = f"04_Walkthrough_Narrated_{int(secs // 60)}min{int(secs % 60):02d}.mp4"
+    KIT.mkdir(parents=True, exist_ok=True)
+    for old in KIT.glob("04_Walkthrough_Narrated_*.mp4"):
+        if old.name != name:
+            old.unlink()
+    if not (KIT / name).exists() or (KIT / name).stat().st_mtime < src.stat().st_mtime:
+        shutil.copy2(src, KIT / name)
+    return name
 
 
 def title_block(doc, title, subtitle, strap):
@@ -140,7 +162,7 @@ def build_start_here():
         doc,
         "Fastest path to a demo",
         f"Install the Native App listing {APP_LISTING} from the internal Marketplace "
-        "in your nearest region, open it, and you have a 13-page dashboard with its "
+        "in your nearest region, open it, and you have a 16-page dashboard with its "
         "own data already inside. See 06_Setup_and_Access.",
     )
 
@@ -163,9 +185,9 @@ def build_start_here():
             ["SAP BDC source objects", "21 A_* objects across 16 domain schemas"],
             ["Analytics layer", "9 dynamic tables in ANALYTICS"],
             ["Serving layer", "11 APP_REF views (the 9 plus A_PLANT and A_SUPPLY_CHAIN_NODES)"],
-            ["Semantic view", "32 facts, 75 dimensions, 8 verified queries"],
+            ["Semantic view", "14 tables, 55 facts, 107 dimensions, 12 verified queries"],
             ["Agent", "SAP_SC360_ANALYST_AGENT, in Snowflake Intelligence"],
-            ["App", "13 pages, React + Express on Snowpark Container Services"],
+            ["App", "16 pages, React + Express on Snowpark Container Services"],
             ["Regions live", "North America, EMEA, APAC"],
             ["Data window", f"{DATA_WINDOW} — a fixed snapshot, 398 L0 rows"],
         ],
@@ -195,7 +217,7 @@ def build_start_here():
                 "10 slides",
             ],
             [
-                "04_Walkthrough_Narrated_9min40.mp4",
+                VIDEO_NAME,
                 "You want to see it run before running it, or need an async asset.",
                 "9m40s",
             ],
@@ -228,7 +250,7 @@ def build_start_here():
         [
             [
                 "Native App listing",
-                "The 13-page dashboard with data bundled in. No setup, no grants, "
+                "The 16-page dashboard with data bundled in. No setup, no grants, "
                 "no warehouse to size.",
                 "Default. Any business audience.",
             ],
@@ -361,6 +383,15 @@ def build_quick_start():
                 "1 min",
             ],
             [
+                "5b",
+                "Fulfillment & Constraints",
+                "OTIF 71.7%, $4.4M late cost, component shortage the top cause. Click "
+                "Ask Cortex: it names San Jose (59.7% OTIF, $3.2M) from the numbers on "
+                "screen. Say these three operations pages run on representative OPS_EXT "
+                "data keyed to the SAP master data. Swap in for Work Center if short.",
+                "1 min",
+            ],
+            [
                 "6",
                 "Supply Chain Map",
                 "Supplier to plant to customer flows on the globe. Strongest visual "
@@ -389,7 +420,7 @@ def build_quick_start():
     body(
         doc,
         "These are the eight suggestion chips the Cortex Analyst page ships with, and "
-        "they line up with the eight verified queries in the semantic view — so they "
+        "they line up with eight of the twelve verified queries in the semantic view — so they "
         "are the safe set. Read them off the screen or type your own variation.",
     )
     for q in AGENT_QUESTIONS:
@@ -432,6 +463,13 @@ def build_quick_start():
         doc,
         ["They say", "You say"],
         [
+            [
+                "Where does the OTIF and equipment data come from?",
+                "Fulfillment, Equipment Health and Components run on OPS_EXT, a "
+                "generated enrichment keyed to the SAP plants, work centers, BOM and "
+                "suppliers. In a customer build those feeds come from sales orders, "
+                "plant maintenance and MES or IoT; the joins to SAP stay the same.",
+            ],
             [
                 "Is this our data or a demo dataset?",
                 f"A demo dataset — a fixed snapshot covering {DATA_WINDOW}, modelled "
@@ -538,7 +576,7 @@ def build_architecture():
             [
                 "Semantic",
                 "SAP_SUPPLY_CHAIN_360",
-                "32 facts, 75 dimensions, 8 verified queries and 3 relationships "
+                "14 tables, 55 facts, 107 dimensions, 12 verified queries and 3 relationships "
                 "over the gold layer.",
             ],
             [
@@ -549,7 +587,7 @@ def build_architecture():
             ],
             [
                 "App",
-                "13 pages on SPCS",
+                "16 pages on SPCS",
                 "React client and Express server, packaged as a self-contained "
                 "Native App with 11 tables bundled into SHARED_DATA.",
             ],
@@ -566,7 +604,7 @@ def build_architecture():
         italic=True,
     )
 
-    h1(doc, "The nine gold tables")
+    h1(doc, "The gold tables")
     table(
         doc,
         ["Dynamic table", "Business content"],
@@ -580,8 +618,22 @@ def build_architecture():
             ["DT_PROJECT_STATUS", "Project budget variance and completion %"],
             ["DT_SUPPLY_CHAIN_GEO", "Geographic flows, supplier to plant to customer"],
             ["DT_SUPPLIER_QUALITY", "Supplier defect rates and composite quality scores"],
+            ["DT_ORDER_FULFILLMENT *", "Order-level OTIF, root cause of lateness, penalty + expedite cost"],
+            ["DT_OPERATING_RATE *", "Monthly loss tree: nameplate to planned, equipment, component, rate loss, produced"],
+            ["DT_EQUIPMENT_HEALTH *", "Daily tool vibration, temperature and 48-hour failure probability"],
+            ["DT_EQUIPMENT_OUTAGE *", "Outage events, downtime hours, root cause, repair cost"],
+            ["DT_COMPONENT_COVER *", "Component days of cover against supplier lead time"],
+            ["DT_SERIAL_GENEALOGY *", "Serial to component lot, supplier inspection and final test"],
         ],
         widths=[2.2, 4.5],
+    )
+    body(
+        doc,
+        "* OPS_EXT demo enrichment: synthetic rows generated by tools/gen_ops_ext.py "
+        "and keyed to the SAP plants, work centers, BOM and suppliers, so they join "
+        "to the BDC data. Representative, not customer data — say so when you demo "
+        "the three operations pages.",
+        italic=True,
     )
 
     h1(doc, "Build order")
@@ -590,11 +642,12 @@ def build_architecture():
         ["Step", "What to run", "Result"],
         [
             ["1", "sql/02_appref_serving_views.sql", "APP_REF serving views"],
-            ["2", "sql/03_l2_analytics_dynamic_tables.sql", "The 9 ANALYTICS dynamic tables"],
+            ["2", "sql/03_l2_analytics_dynamic_tables.sql", "The 9 BDC-sourced ANALYTICS dynamic tables"],
+            ["2b", "tools/gen_ops_ext.py, then sql/06_ops_ext_dynamic_tables.sql", "OPS_EXT seed data and its 6 dynamic tables"],
             ["3", "sql/04_semantic_view.sql", "SAP_SUPPLY_CHAIN_360 semantic view"],
             ["4", "sql/05_cortex_agent.sql", "SAP_SC360_ANALYST_AGENT"],
             ["5", "scripts/build_and_push.sh", "Container image for SPCS"],
-            ["6", "scripts/migrate_data.py", "Bundle the 11 tables into SHARED_DATA"],
+            ["6", "scripts/migrate_data.py", "Bundle the 18 tables into SHARED_DATA"],
             ["7", "scripts/deploy_native_app.py", "Application package and version"],
             ["8", "scripts/create_org_listing.py", "Region-scoped organization listing"],
         ],
@@ -610,7 +663,7 @@ def build_architecture():
     h1(doc, "Refresh behaviour, and a caveat")
     body(
         doc,
-        "The nine dynamic tables are defined with TARGET_LAG = DOWNSTREAM, which "
+        "The fifteen dynamic tables are defined with TARGET_LAG = DOWNSTREAM, which "
         "means they refresh only when something downstream with its own lag demands "
         "it. Nothing downstream currently declares a lag, so in practice they do not "
         "refresh on a schedule.",
@@ -654,7 +707,7 @@ def build_setup():
             [
                 "Native App (default)",
                 APP_LISTING,
-                "The 13-page dashboard with data bundled in. No grants, no warehouse "
+                "The 16-page dashboard with data bundled in. No grants, no warehouse "
                 "sizing, no data setup. Region-scoped: install the one for your region.",
             ],
             [
@@ -766,6 +819,8 @@ def build_setup():
 
 
 def main():
+    global VIDEO_NAME
+    VIDEO_NAME = kit_video(VIDEO_SRC)
     KIT.mkdir(parents=True, exist_ok=True)
     for fn in (build_start_here, build_quick_start, build_architecture, build_setup):
         print(f"wrote {fn()}")

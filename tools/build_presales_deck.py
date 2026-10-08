@@ -9,6 +9,7 @@ of a customer.
     python3 tools/build_presales_deck.py
 """
 
+import json
 import pathlib
 import subprocess
 
@@ -21,7 +22,7 @@ from pptx.util import Inches, Pt
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 KIT = pathlib.Path.home() / "Documents" / "SAP" / "Supply_Chain_360_Presales_Kit"
-VIDEO = KIT / "04_Walkthrough_Narrated_9min40.mp4"
+VIDEO = pathlib.Path.home() / "Documents" / "SAP" / "SAP_Supply_Chain_360_Demo.mp4"
 SHOTS = REPO / "tools" / ".presales_shots"
 
 NAVY = RGBColor(0x1B, 0x3A, 0x57)
@@ -35,28 +36,28 @@ LIGHT = RGBColor(0xEE, 0xF4, 0xF8)
 
 W, H = Inches(13.333), Inches(7.5)
 
-# Browser chrome occupies the top ~90px of a 1080p frame (tab strip, URL bar and
-# a personal bookmarks bar). Crop it off. The bottom ~8px is a coloured border.
-CHROME_TOP = 92
-FRAME_BOTTOM = 1072
-
-# timestamp, and an optional bottom bound. The Cortex Analyst page is mostly empty
-# below its suggestion chips, so it is cropped to the part that carries the story.
-# (timestamp, crop). crop is either None (just strip browser chrome), an int
-# bottom bound, or an explicit (left, top, right, bottom) box in source pixels.
-# The Analyst page is mostly empty space, so it is cropped to the chip grid — at
-# full-page scale the chip text is unreadable, which defeats showing it at all.
-FRAMES = {
-    "ontology": (520, None),
-    "chips": (545, (738, 512, 1388, 700)),
-    "objects": (380, None),
+# Screens come from the narrated walkthrough, which the shared video builder
+# renders at a 1600x1000 app viewport with a 132px caption band below it — so
+# a crop to APP_H drops the caption and there is no browser chrome to strip.
+# Frames are taken partway into a named segment via the builder's timeline, so
+# a re-recording with different pacing still lands on the right screen.
+APP_H = 1000
+TIMELINE = pathlib.Path("/tmp/sc_demo_video/timeline.json")
+FRAMES = {                       # name -> (segment id, fraction into the segment)
+    "ontology": ("09_sc_ontology", 0.6),
+    "objects": ("06_lineage", 0.6),
 }
+# The video asks its Cortex Analyst question straight away, so the suggestion
+# chip grid is never on screen for long. It is shot from the running app instead.
+CHIPS_APP = "http://localhost:5174/"
+CHIPS_BOX = (280, 120, 1576, 420)    # chip grid, in 1600x1000 viewport pixels
 
 APP_PAGES = [
     "Executive Overview", "Production Planning", "Bill of Materials",
-    "Inventory & Warehouse", "Logistics & Delivery", "Work Center & Capacity",
+    "Inventory & Warehouse", "Logistics & Delivery", "Fulfillment & Constraints",
+    "Equipment Health", "Components & Digital Thread", "Work Center & Capacity",
     "Project Management", "Supply Chain Map", "Supply Chain Ontology",
-    "SC Optimization", "SC Forecasting", "BDC Data Products", "Cortex Analyst",
+    "SC Optimization", "SC Forecasting", "BDC Sources & Lineage", "Cortex Analyst",
 ]
 
 REGIONS = [
@@ -66,26 +67,47 @@ REGIONS = [
 ]
 
 
+def frame_time(seg_id, frac):
+    segs = {x["id"]: x for x in json.loads(TIMELINE.read_text())["segments"]}
+    return round(segs[seg_id]["start"] + frac * segs[seg_id]["secs"], 2)
+
+
+def shoot_chips(path):
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        pg = b.new_page(viewport={"width": 1600, "height": APP_H})
+        pg.goto(CHIPS_APP, wait_until="domcontentloaded")
+        pg.get_by_role("button", name="Cortex Analyst", exact=True).click()
+        pg.get_by_text("What is the monthly OEE trend by plant?").first.wait_for(timeout=30000)
+        pg.mouse.move(5, APP_H - 5)    # keep the pointer out of the shot
+        pg.wait_for_timeout(800)
+        pg.screenshot(path=str(path), clip=dict(x=CHIPS_BOX[0], y=CHIPS_BOX[1],
+                      width=CHIPS_BOX[2] - CHIPS_BOX[0], height=CHIPS_BOX[3] - CHIPS_BOX[1]))
+        b.close()
+
+
 def grab_frames():
     SHOTS.mkdir(parents=True, exist_ok=True)
     out = {}
-    for name, (ts, crop) in FRAMES.items():
+    stale = VIDEO.stat().st_mtime
+    for name, (seg, frac) in FRAMES.items():
         path = SHOTS / f"{name}.png"
-        if not path.exists():
+        if not path.exists() or path.stat().st_mtime < stale:
             raw = SHOTS / f"{name}_raw.png"
             subprocess.run(
-                ["ffmpeg", "-v", "error", "-ss", str(ts), "-i", str(VIDEO),
+                ["ffmpeg", "-v", "error", "-ss", str(frame_time(seg, frac)), "-i", str(VIDEO),
                  "-frames:v", "1", str(raw), "-y"],
                 check=True,
             )
             im = Image.open(raw)
-            if isinstance(crop, tuple):
-                box = crop
-            else:
-                box = (0, CHROME_TOP, im.width, min(crop or FRAME_BOTTOM, im.height))
-            im.crop(box).save(path)
+            im.crop((0, 0, im.width, min(APP_H, im.height))).save(path)
             raw.unlink()
         out[name] = path
+    chips = SHOTS / "chips.png"
+    if not chips.exists() or chips.stat().st_mtime < stale:
+        shoot_chips(chips)
+    out["chips"] = chips
     return out
 
 
@@ -175,7 +197,7 @@ def s01_title(prs):
         ("SAP supply-chain analytics on Snowflake — zero ETL, zero copy", 17, False, LIGHT, 0),
     ])
     text(s, Inches(0.95), Inches(5.5), Inches(11.4), Inches(1.2), [
-        ("21 SAP BDC objects · 9 gold tables · governed semantic view · Cortex Agent · 13-page app",
+        ("21 SAP BDC objects · 15 gold tables · governed semantic view · Cortex Agent · 16-page app",
          12, True, BLUE, 6),
         ("Installs as a self-contained Native App in North America, EMEA and APAC", 11, False, LIGHT, 0),
     ])
@@ -219,13 +241,13 @@ def s03_architecture(prs):
         ("L2", "Gold — SAP_SUPPLY_CHAIN.ANALYTICS",
          "9 dynamic tables joining and aggregating L0 into analytics-ready shapes"),
         ("SRV", "Serving — APP_REF",
-         "11 stable app-facing views, decoupling the app from the physical objects"),
+         "17 stable app-facing views, decoupling the app from the physical objects"),
         ("SEM", "Semantic — SAP_SUPPLY_CHAIN_360",
-         "32 facts · 75 dimensions · 8 verified queries · 3 relationships"),
+         "55 facts · 107 dimensions · 12 verified queries · 3 relationships"),
         ("AI", "Agent — SAP_SC360_ANALYST_AGENT",
          "Cortex Agent in Snowflake Intelligence, and Cortex Analyst inside the app"),
-        ("APP", "Native App — 13 pages on SPCS",
-         "React + Express, 11 tables bundled into SHARED_DATA, nothing to configure"),
+        ("APP", "Native App — 16 pages on SPCS",
+         "React + Express, 18 tables bundled into SHARED_DATA, nothing to configure"),
     ]
     y = Inches(1.9)
     for tag, name, detail in layers:
@@ -249,7 +271,7 @@ def s04_objects(prs, shots):
         ("SAP BDC source objects", "21 across 16 schemas", NAVY),
         ("Gold dynamic tables", "9", NAVY),
         ("Serving views (APP_REF)", "11", NAVY),
-        ("Semantic view", "32 facts · 75 dims", NAVY),
+        ("Semantic view", "55 facts · 107 dims", NAVY),
     ])
     footer(s, "The architect's slide: the objects exist, they are named, and the semantic view is governed.")
 
@@ -311,7 +333,7 @@ def s07_routes(prs):
         ("Native App", "The default",
          ["Install the listing, open it, present",
           "Data bundled in — no grants, no warehouse sizing",
-          "13 pages plus an in-app Cortex Analyst",
+          "16 pages plus Cortex Analyst and Ask Cortex",
           "Best for business, ops and exec audiences"],
          BLUE),
         ("Data share + Snowflake Intelligence", "For architects",
@@ -370,21 +392,22 @@ def s09_real(prs):
          13, True, GREY, 0)])
     rows = [
         ("Medallion architecture and SQL", "Real — this is the deliverable", GREEN),
-        ("Semantic view (32 facts, 75 dimensions)", "Real — verified in the account", GREEN),
-        ("Cortex Agent and its 8 verified queries", "Real — same objects a customer would run", GREEN),
-        ("Native App, 13 pages, 3 regions", "Real — deployed and installable today", GREEN),
+        ("Semantic view (55 facts, 107 dimensions)", "Real — verified in the account", GREEN),
+        ("Cortex Agent and its 12 verified queries", "Real — same objects a customer would run", GREEN),
+        ("Native App, 16 pages, 3 regions", "Real — deployed and installable today", GREEN),
         ("SAP BDC structure (21 objects, 16 schemas)", "Real structure, modelled on actual BDC products", AMBER),
         ("The rows themselves", "Synthetic — Apex Manufacturing, 5 plants, 398 L0 rows", AMBER),
+        ("OTIF, equipment and component cover (OPS_EXT)", "Generated enrichment keyed to SAP master data", AMBER),
         ("Data window", "Fixed: January to September 2025 — NOT current", RED),
         ("Live SAP connection", "None. This is a reference dataset, not a feed", RED),
     ]
     y = Inches(2.35)
     for i, (element, status, color) in enumerate(rows):
-        rect(s, Inches(0.6), y, Inches(12.13), Inches(0.52), LIGHT if i % 2 == 0 else WHITE)
-        rect(s, Inches(0.6), y, Inches(0.05), Inches(0.52), color)
-        text(s, Inches(0.85), y + Inches(0.13), Inches(5.3), Inches(0.3), [(element, 12, True, NAVY, 0)])
-        text(s, Inches(6.3), y + Inches(0.13), Inches(6.3), Inches(0.3), [(status, 12, False, color, 0)])
-        y += Inches(0.56)
+        rect(s, Inches(0.6), y, Inches(12.13), Inches(0.48), LIGHT if i % 2 == 0 else WHITE)
+        rect(s, Inches(0.6), y, Inches(0.05), Inches(0.48), color)
+        text(s, Inches(0.85), y + Inches(0.11), Inches(5.3), Inches(0.3), [(element, 12, True, NAVY, 0)])
+        text(s, Inches(6.3), y + Inches(0.11), Inches(6.3), Inches(0.3), [(status, 12, False, color, 0)])
+        y += Inches(0.5)
     footer(s, "Both marketplace listings state the data window and are set to refresh_rate STATIC rather than implying a live feed.")
 
 
