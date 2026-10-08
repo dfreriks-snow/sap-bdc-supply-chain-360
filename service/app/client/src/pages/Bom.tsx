@@ -5,7 +5,7 @@ import MetricCard, { Factory, CheckCircle2, Timer, TrendingUp } from '@/componen
 import ChartCard from '@/components/ChartCard';
 import DataTable from '@/components/DataTable';
 import * as Tabs from '@radix-ui/react-tabs';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '@/components/Chart';
 
 const PALETTE = ['#06b6d4', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#ec4899'];
 const tabClass = 'px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:border-b-2 data-[state=active]:border-sf-primary data-[state=active]:text-sf-dark';
@@ -116,7 +116,7 @@ export default function Bom() {
     animationEasing: 'elasticOut',
   };
 
-  // ── ECharts: Item Category Donut ──
+  // ── ECharts: Item Category (ranked bar via Chart policy) ──
   const catOption = {
     tooltip: {
       trigger: 'item',
@@ -262,7 +262,7 @@ export default function Bom() {
           <ChartCard title="Components per BOM Level" subtitle="Number of component entries at each hierarchy depth">
             <ReactECharts option={levelOption} style={{ height: 300 }} />
           </ChartCard>
-          <ChartCard title="Item Category Distribution" subtitle="Breakdown of component types (rose donut)">
+          <ChartCard title="Item Category Distribution" subtitle="Component count by item type, largest first">
             <ReactECharts option={catOption} style={{ height: 300 }} />
           </ChartCard>
         </div>

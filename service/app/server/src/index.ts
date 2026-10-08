@@ -8,6 +8,7 @@ dotenv.config({ path: path.resolve(import.meta.dirname, "../../.env") });
 import express from "express";
 import cors from "cors";
 import apiRouter from "./routes/api.js";
+import opsRouter from "./routes/ops.js";
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
@@ -19,6 +20,7 @@ app.use(express.json());
 app.get("/healthcheck", (_req, res) => res.status(200).send("ok"));
 
 app.use(apiRouter);
+app.use(opsRouter);
 
 // Serve the built React client when packaged in the container.
 // CLIENT_DIST is set in the Dockerfile to the client/dist output directory.

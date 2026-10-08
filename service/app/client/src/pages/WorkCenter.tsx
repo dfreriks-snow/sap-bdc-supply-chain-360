@@ -5,7 +5,7 @@ import MetricCard, { Factory, CheckCircle2, Timer, TrendingUp } from '@/componen
 import ChartCard from '@/components/ChartCard';
 import DataTable from '@/components/DataTable';
 import * as Tabs from '@radix-ui/react-tabs';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '@/components/Chart';
 
 const PALETTE = ['#06b6d4', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#ec4899'];
 const tabClass = 'px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:border-b-2 data-[state=active]:border-sf-primary data-[state=active]:text-sf-dark';
@@ -89,7 +89,7 @@ export default function WorkCenter() {
   const monthlyUtil = periods.map((p) => +(100 * monthAgg[p].used / monthAgg[p].avail).toFixed(1));
   const monthlyAvail = periods.map((p) => monthAgg[p].avail);
   const monthlyUsed = periods.map((p) => monthAgg[p].used);
-  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', year: '2-digit' });
 
   // Bottlenecks
   const bottlenecks = utilByWc.filter((w) => w.util > 85);
@@ -142,7 +142,7 @@ export default function WorkCenter() {
     animationEasing: 'elasticOut',
   };
 
-  // ── ECharts: Utilization by Plant (donut) ──
+  // ── ECharts: Utilization by Plant (ranked bar via Chart policy) ──
   const utilPlantOption = {
     tooltip: {
       trigger: 'item',

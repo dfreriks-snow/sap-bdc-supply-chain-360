@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { runQuery } from "../services/snowflake.js";
 import { callCortexAnalyst } from "../services/analyst.js";
+import { buildLineage } from "./lineage.js";
 
 const router = Router();
 
@@ -273,60 +274,16 @@ router.get("/api/geography", async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/data-products
+// GET /api/lineage — BDC sources, row counts and medallion lineage
 // ---------------------------------------------------------------------------
-
-// Bundled in the image (see Dockerfile); overridable via env for local dev.
-const DATA_PRODUCTS_PATH =
-  process.env.DATA_PRODUCTS_PATH ??
-  "/Users/dfreriks/Documents/SAP/SAP Skills/sap_data_products_full.json";
-// CSN enrichment is optional — if the directory is absent, entities are null.
-const CSN_DIR =
-  process.env.CSN_DIR ?? "/Users/dfreriks/Documents/SAP/SAP Skills/csn_files";
-
-interface DataProduct {
-  TechnicalName: string;
-  DisplayName: string;
-  LineOfBusiness?: string | null;
-  [key: string]: unknown;
-}
-
-router.get("/api/data-products", async (_req: Request, res: Response) => {
+router.get("/api/lineage", async (_req: Request, res: Response) => {
   try {
-    const raw = fs.readFileSync(DATA_PRODUCTS_PATH, "utf-8");
-    const data = JSON.parse(raw) as {
-      metadata: unknown;
-      data_products: DataProduct[];
-      business_objects: unknown;
-    };
-
-    // Filter to Supply Chain LOB
-    const products = data.data_products.filter(
-      (dp) => dp.LineOfBusiness === "Supply Chain"
-    );
-
-    // Attempt to attach CSN entity details for each product
-    const enriched = products.map((dp) => {
-      const techName = dp.TechnicalName; // e.g. "sap-bdc-s4-pp-ManufacturingOrder-v1"
-      const csnFileName = `${techName}.csn.json`;
-      const csnPath = path.join(CSN_DIR, csnFileName);
-
-      let entities: unknown = null;
-      if (fs.existsSync(csnPath)) {
-        try {
-          const csnRaw = fs.readFileSync(csnPath, "utf-8");
-          entities = JSON.parse(csnRaw);
-        } catch {
-          // skip malformed files
-        }
-      }
-
-      return { ...dp, _csn: entities };
-    });
-
-    res.json(enriched);
+    const c = (await runQuery(
+      `SELECT * FROM APP_DATA.LINEAGE_COUNTS`
+    ))[0] as Record<string, unknown>;
+    res.json(buildLineage(c, "SUPPLY_CHAIN_360_APP (bundled APP_DATA, snapshot of SAP_SUPPLY_CHAIN)"));
   } catch (err) {
-    console.error("GET /api/data-products error:", err);
+    console.error("GET /api/lineage error:", err);
     res.status(500).json({ error: String(err) });
   }
 });
